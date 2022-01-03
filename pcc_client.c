@@ -16,7 +16,12 @@ int main(int argc,char* argv[]) {
     unsigned char buff[sizeof(struct in_addr)];
     FILE * fd;
     int sockfd;
-    int fileLen;
+    long fileLen;
+    int bytes_write;
+    uint32_t NSize;
+    char * fileValue;
+    int written=0;
+
 
     if (argc != 4) {
         errno = EINVAL;
@@ -24,7 +29,7 @@ int main(int argc,char* argv[]) {
         //exit(1);
     }
 
-    if ((fd = open(argv[3], O_RDWR)) < 0) {
+    if ((fd = fopen(argv[3], "rb")) < 0) {
         perror("Could not open the file\n");
         exit(1);
     }
@@ -40,6 +45,16 @@ int main(int argc,char* argv[]) {
     // Restarts the file buffer
     rewind(fd);
 
+    NSize = htonl(fileLen);
+
+    // Create send buffer
+    fileValue=malloc(fileLen);
+
+   if (fread(fileValue,NSize,1,fd) != NSize) {
+       perror("Can't write file to buffer");
+       exit(1);
+   }
+
     if( (sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
         printf("Could not create socket \n");
@@ -47,7 +62,7 @@ int main(int argc,char* argv[]) {
     }
 
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(argv[2]); // Note: htons for endiannes
+    serv_addr.sin_port = htons((uint16_t)atoi(argv[2])); // Note: htons for endiannes
     if (inet_pton(AF_INET,argv[1],&serv_addr.sin_addr) <= 0) {
         perror("Could not use the ip given.\n");
         exit(1);
@@ -63,24 +78,34 @@ int main(int argc,char* argv[]) {
 
     while( 1 )
     {
-        bytes_read = read(sockfd,
-                          recv_buff,
-                          sizeof(recv_buff) - 1);
-        if( bytes_read <= 0 )
+        bytes_write = (int)write(sockfd,
+                            (char*)&NSize + written,
+                          sizeof(NSize));
+        if( bytes_write < 0 ){
+            perror("Can't write to server");
+            exit(1);
+        }
+            written += bytes_write;
+        if (written == NSize) {
+            bytes_write = 0;
+            written = 0;
             break;
-        recv_buff[bytes_read] = '\0';
-        puts( recv_buff );
+        }
+        bytes_write = 0;
     }
-
     while( 1 )
     {
-        bytes_read = read(sockfd,
-                          recv_buff,
-                          sizeof(recv_buff) - 1);
-        if( bytes_read <= 0 )
+        bytes_write = (int)write(sockfd,
+                                 fileValue + written,
+                                 sizeof(NSize));
+        if( bytes_write < 0 ){
+            perror("Can't write to server");
+            exit(1);
+        }
+        written += bytes_write;
+        if (written == NSize) {
             break;
-        recv_buff[bytes_read] = '\0';
-        puts( recv_buff );
+        }
     }
 
 
