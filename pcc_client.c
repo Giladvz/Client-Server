@@ -11,16 +11,13 @@
 
 int main(int argc,char* argv[]) {
     struct sockaddr_in serv_addr;
-    unsigned int readable = 0;
-    int16_t port;
-    unsigned char buff[sizeof(struct in_addr)];
     FILE * fd;
     int sockfd;
     long fileLen;
-    int bytes_write;
+    int bytes_rw;
     uint32_t NSize;
     char * fileValue;
-    int written=0;
+    int used =0;
 
 
     if (argc != 4) {
@@ -78,39 +75,55 @@ int main(int argc,char* argv[]) {
 
     while( 1 )
     {
-        bytes_write = (int)write(sockfd,
-                            (char*)&NSize + written,
-                          sizeof(NSize));
-        if( bytes_write < 0 ){
+        bytes_rw = (int)write(sockfd,
+                              (char*)&NSize + used,
+                              sizeof(NSize));
+        if(bytes_rw < 0 ){
             perror("Can't write to server");
             exit(1);
         }
-            written += bytes_write;
-        if (written == NSize) {
-            bytes_write = 0;
-            written = 0;
+        used += bytes_rw;
+        if (used == sizeof(NSize)) {
+            bytes_rw = 0;
+            used = 0;
             break;
         }
-        bytes_write = 0;
+        bytes_rw = 0;
     }
     while( 1 )
     {
-        bytes_write = (int)write(sockfd,
-                                 fileValue + written,
-                                 sizeof(NSize));
-        if( bytes_write < 0 ){
+        bytes_rw = (int)write(sockfd,
+                              fileValue + used,
+                              NSize);
+        if(bytes_rw < 0 ){
             perror("Can't write to server");
             exit(1);
         }
-        written += bytes_write;
-        if (written == NSize) {
+        used += bytes_rw;
+        if (used == NSize) {
+            bytes_rw = 0;
+            used = 0;
+            break;
+        }
+    }
+    realloc(fileValue,sizeof(uint32_t));
+    while( 1 )
+    {
+        bytes_rw = read(sockfd,
+                          fileValue + used,
+                          sizeof(uint32_t));
+        if( bytes_rw < 0 ) {
+            perror("Can't read from server\n");
+            exit(1);
+        }
+        used += bytes_rw;
+        if (used == NSize){
             break;
         }
     }
 
-
     close(sockfd);
     close(fd);
-    printf("# of printable characters: %u\n",readable);
+    printf("# of printable characters: %u\n",*fileValue);
     exit(0);
 }
