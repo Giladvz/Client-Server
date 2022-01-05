@@ -11,10 +11,12 @@
 
 int main(int argc,char* argv[]) {
     int i;
-    int sockfd;
+    int sockfd = -1;
+    int connfd = -1;
     uint32_t statistics[95];
     uint32_t addToStatistics[95];
     struct sockaddr_in serv_addr;
+    struct sockaddr_in peer_addr;
     socklen_t addrsize = sizeof(struct sockaddr_in );
 
     if (argc != 2) {
@@ -42,7 +44,7 @@ int main(int argc,char* argv[]) {
 
     if( 0 != bind( sockfd,
                    (struct sockaddr*) &serv_addr,
-                   sizeof(struct sockaddr_in) ) )
+                   addrsize))
     {
         perror("Bind failed");
         exit(1);
@@ -58,29 +60,12 @@ int main(int argc,char* argv[]) {
         // Accept a connection.
         // Can use NULL in 2nd and 3rd arguments
         // but we want to print the client socket details
-        connfd = accept(listenfd,
+        if ((connfd = accept(sockfd,
                         (struct sockaddr *) &peer_addr,
-                        &addrsize);
-
-        if (connfd < 0) {
-            printf("\n Error : Accept Failed. %s \n", strerror(errno));
-            return 1;
+                        &addrsize)) < 0) {
+            perror("Accept Failed\n");
+            exit(1);
         }
-
-        getsockname(connfd, (struct sockaddr *) &my_addr, &addrsize);
-        getpeername(connfd, (struct sockaddr *) &peer_addr, &addrsize);
-        printf("Server: Client connected.\n"
-               "\t\tClient IP: %s Client Port: %d\n"
-               "\t\tServer IP: %s Server Port: %d\n",
-               inet_ntoa(peer_addr.sin_addr),
-               ntohs(peer_addr.sin_port),
-               inet_ntoa(my_addr.sin_addr),
-               ntohs(my_addr.sin_port));
-
-        // write time
-        ticks = time(NULL);
-        snprintf(data_buff, sizeof(data_buff),
-                 "%.24s\r\n", ctime(&ticks));
 
         totalsent = 0;
         int notwritten = strlen(data_buff);
