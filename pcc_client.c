@@ -2,9 +2,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <netinet/in.h>
-#include <netdb.h>
 #include <unistd.h>
 #include <errno.h>
 #include <arpa/inet.h>
@@ -23,14 +21,14 @@ int main(int argc,char* argv[]) {
     if (argc != 4) {
         errno = EINVAL;
         perror("There should be 3 paramaters\n");
-        //exit(1);
+        exit(1);
     }
 
     if ((fd = fopen(argv[3], "rb")) < 0) {
         perror("Could not open the file\n");
         exit(1);
     }
-    // Get file length
+    // Get file length, got help from https://www.tutorialspoint.com/c-program-to-find-size-of-a-file
     if (fseek(fd, 0L, SEEK_END)<0) {
         perror("Can't get file length");
         exit(1);
@@ -59,7 +57,7 @@ int main(int argc,char* argv[]) {
     }
 
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons((uint16_t)atoi(argv[2])); // Note: htons for endiannes
+    serv_addr.sin_port = htons((uint16_t)atoi(argv[2]));
     if (inet_pton(AF_INET,argv[1],&serv_addr.sin_addr) <= 0) {
         perror("Could not use the ip given.\n");
         exit(1);
