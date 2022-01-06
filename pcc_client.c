@@ -9,13 +9,14 @@
 
 int main(int argc,char* argv[]) {
     struct sockaddr_in serv_addr;
+    int32_t ret =0 ;
     FILE * fd;
     int sockfd;
     long fileLen;
-    int bytes_rw;
+    uint32_t bytes_rw;
     uint32_t NSize;
     char * fileValue;
-    int used =0;
+    uint32_t used =0;
 
 
     if (argc != 4) {
@@ -24,15 +25,16 @@ int main(int argc,char* argv[]) {
         exit(1);
     }
 
-    if ((fd = fopen(argv[3], "rb")) < 0) {
+    if ((fd = fopen(argv[3], "r")) < 0) {
         perror("Could not open the file\n");
         exit(1);
     }
     // Get file length, got help from https://www.tutorialspoint.com/c-program-to-find-size-of-a-file
-    if (fseek(fd, 0L, SEEK_END)<0) {
+    if (fseek(fd, 0, SEEK_END)<0) {
         perror("Can't get file length");
         exit(1);
     }
+
     if ((fileLen = ftell(fd)) < 0) {
         perror("Can't get file length");
         exit(1);
@@ -45,10 +47,10 @@ int main(int argc,char* argv[]) {
     // Create send buffer
     fileValue=malloc(fileLen);
 
-   if (fread(fileValue,NSize,1,fd) != NSize) {
-       perror("Can't write file to buffer");
-       exit(1);
-   }
+    if (fread(fileValue,1,fileLen,fd) != fileLen) {
+        perror("Can't write file to buffer");
+        exit(1);
+    }
 
     if( (sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
@@ -62,7 +64,6 @@ int main(int argc,char* argv[]) {
         perror("Could not use the ip given.\n");
         exit(1);
     }
-
     if( connect(sockfd,
                 (struct sockaddr*) &serv_addr,
                 sizeof(serv_addr)) < 0)
@@ -70,12 +71,11 @@ int main(int argc,char* argv[]) {
         perror("Connect Failed.\n");
         exit(1);
     }
-
     while( 1 )
     {
-        bytes_rw = (int)write(sockfd,
+        bytes_rw = write(sockfd,
                               (char*)&NSize + used,
-                              sizeof(NSize));
+                              sizeof(NSize)) -used;
         if(bytes_rw < 0 ){
             perror("Can't write to server");
             exit(1);
@@ -88,40 +88,39 @@ int main(int argc,char* argv[]) {
         }
         bytes_rw = 0;
     }
+
     while( 1 )
     {
-        bytes_rw = (int)write(sockfd,
+        bytes_rw = write(sockfd,
                               fileValue + used,
-                              NSize);
+                              fileLen-used);
         if(bytes_rw < 0 ){
             perror("Can't write to server");
             exit(1);
         }
         used += bytes_rw;
-        if (used == NSize) {
+        if (used == fileLen) {
             bytes_rw = 0;
             used = 0;
             break;
         }
     }
-    realloc(fileValue,sizeof(uint32_t));
+    fileValue = (char*)&ret;
     while( 1 )
     {
         bytes_rw = read(sockfd,
                           fileValue + used,
-                          sizeof(uint32_t));
+                          sizeof(uint32_t)- used);
         if( bytes_rw < 0 ) {
             perror("Can't read from server\n");
             exit(1);
         }
         used += bytes_rw;
-        if (used == NSize){
+        if (used == sizeof(uint32_t)){
             break;
         }
     }
 
-    close(sockfd);
-    close(fd);
-    printf("# of printable characters: %u\n",*fileValue);
+    printf("# of printable characters: %u\n",ntohl(ret));
     exit(0);
 }
