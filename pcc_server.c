@@ -9,15 +9,20 @@
 #include <errno.h>
 #include <arpa/inet.h>
 
+uint32_t statistics[95];
+uint32_t addToStatistics[95];
 int main(int argc,char* argv[]) {
     int i;
     int sockfd = -1;
     int connfd = -1;
-    uint32_t statistics[95];
-    uint32_t addToStatistics[95];
+
+    uint32_t used;
+    uint32_t bytes_rw;
     struct sockaddr_in serv_addr;
     struct sockaddr_in peer_addr;
     socklen_t addrsize = sizeof(struct sockaddr_in );
+    uint32_t size[sizeof(uint32_t)];
+    char* txt;
 
     if (argc != 2) {
         errno = EINVAL;
@@ -67,26 +72,38 @@ int main(int argc,char* argv[]) {
             exit(1);
         }
 
-        totalsent = 0;
-        int notwritten = strlen(data_buff);
+        used = 0;
 
         // keep looping until nothing left to write
-        while (notwritten > 0) {
-            // notwritten = how much we have left to write
-            // totalsent  = how much we've written so far
-            // nsent = how much we've written in last write() call */
-            nsent = write(connfd,
-                          data_buff + totalsent,
-                          notwritten);
-            // check if error occured (client closed connection?)
-            assert(nsent >= 0);
-            printf("Server: wrote %d bytes\n", nsent);
-
-            totalsent += nsent;
-            notwritten -= nsent;
+        while (1) {
+            bytes_rw = read(connfd,
+                          size + used,
+                          sizeof(uint32_t) - used);
+            used += bytes_rw;
+            if (used == sizeof(uint32_t)) {
+                used = 0;
+                bytes_rw = 0;
+                break;
+            }
+            bytes_rw = 0;
         }
-
-
+        txt = malloc(ntohl(size));
+        while (1) {
+            bytes_rw = read(connfd,
+                            txt + used,
+                            sizeof(uint32_t) - used);
+            used += bytes_rw;
+            if (used == size) {
+                bytes_rw = 0;
+                break;
+            }
+            bytes_rw = 0;
+        }
+        for (i; i<size;i++){
+            if (txt[i] <= 126 && txt[i] >= 32) {
+                addToStatistics[txt[i] - 32] += 1;
+            }
+        }
     }
     for (i=0;i<95;i++) {
         printf("char '%c' : %u times\n");
