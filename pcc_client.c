@@ -25,7 +25,7 @@ int main(int argc,char* argv[]) {
         exit(1);
     }
 
-    if ((fd = fopen(argv[3], "r")) < 0) {
+    if ((fd = fopen(argv[3], "r")) == NULL) {
         perror("Could not open the file\n");
         exit(1);
     }
@@ -45,7 +45,11 @@ int main(int argc,char* argv[]) {
     NSize = htonl(fileLen);
 
     // Create send buffer
-    fileValue=malloc(fileLen);
+    if ((fileValue=malloc(fileLen)) == NULL){
+        perror("Error with malloc");
+        exit(1);
+    }
+
 
     if (fread(fileValue,1,fileLen,fd) != fileLen) {
         perror("Can't write file to buffer");
@@ -71,6 +75,7 @@ int main(int argc,char* argv[]) {
         perror("Connect Failed.\n");
         exit(1);
     }
+
     while( 1 )
     {
         bytes_rw = write(sockfd,
@@ -88,7 +93,6 @@ int main(int argc,char* argv[]) {
         }
         bytes_rw = 0;
     }
-
     while( 1 )
     {
         bytes_rw = write(sockfd,
@@ -105,6 +109,8 @@ int main(int argc,char* argv[]) {
             break;
         }
     }
+    // I'm not sure why just using a pointer didn't work. Found this fix on
+    // https://stackoverflow.com/questions/9140409/transfer-integer-over-a-socket-in-c
     fileValue = (char*)&ret;
     while( 1 )
     {
